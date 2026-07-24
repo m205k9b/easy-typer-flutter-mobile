@@ -57,6 +57,30 @@ class _EasyTyperAppState extends State<EasyTyperApp> {
       colorScheme: ColorScheme.fromSeed(seedColor: AppColors.primary),
       fontFamily: 'sans-serif',
     ),
+    builder: (BuildContext context, Widget? child) {
+      final mq = MediaQuery.of(context);
+      final vp = mq.viewPadding;
+
+      final topAbnormal = vp.top <= 0 || vp.top > 50;
+      final bottomAbnormal = vp.bottom <= 0 || vp.bottom > 50;
+
+      if (!topAbnormal && !bottomAbnormal) {
+        return child!;
+      }
+
+      final fixedVP = vp.copyWith(
+        top: topAbnormal ? 25.0 : vp.top,
+        bottom: bottomAbnormal ? 35.0 : vp.bottom,
+      );
+
+      return MediaQuery(
+        data: mq.copyWith(
+          viewPadding: fixedVP,
+          padding: fixedVP + mq.viewInsets,
+        ),
+        child: child!,
+      );
+    },
     home: AppShell(state: _state),
   );
 }
