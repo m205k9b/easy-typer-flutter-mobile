@@ -121,14 +121,9 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Text(
-                    controller.target,
-                    style: const TextStyle(
-                      color: AppColors.ink,
-                      fontFamily: 'serif',
-                      fontSize: 22,
-                      height: 1.7,
-                    ),
+                  _TargetRichText(
+                    target: controller.target,
+                    input: controller.input,
                   ),
                 ],
               ),
@@ -349,4 +344,43 @@ class _SmallMetric extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _TargetRichText extends StatelessWidget {
+  const _TargetRichText({required this.target, required this.input});
+  final String target;
+  final String input;
+
+  static const _correctBg = Color(0xFFe5e5e5);
+  static const _errorBg = Color(0xFFF56C6C);
+  static const _typedFg = Color(0xFF000000);
+  static const _errorFg = Color(0xFF000000);
+  static const _pendingFg = Color(0xFF606266);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        style: const TextStyle(
+          color: _pendingFg,
+          fontFamily: 'serif',
+          fontSize: 22,
+          height: 1.7,
+        ),
+        children: List.generate(target.length, (i) {
+          if (i >= input.length) {
+            return TextSpan(text: target[i]);
+          }
+          final correct = input[i] == target[i];
+          return TextSpan(
+            text: target[i],
+            style: TextStyle(
+              color: correct ? _typedFg : _errorFg,
+              backgroundColor: correct ? _correctBg : _errorBg,
+            ),
+          );
+        }),
+      ),
+    );
+  }
 }
