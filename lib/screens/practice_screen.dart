@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../app.dart';
+import '../models.dart';
 import '../practice_controller.dart';
 import '../widgets.dart';
 
@@ -58,6 +60,38 @@ class _PracticeScreenState extends State<PracticeScreen> {
     _focusNode.requestFocus();
   }
 
+  Future<void> _loadFromClipboard() async {
+    final data = await Clipboard.getData('text/plain');
+    final raw = data?.text ?? '';
+    if (raw.trim().isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('剪贴板为空')),
+      );
+      return;
+    }
+    final article = parseClipboardArticle(raw);
+    if (article.content.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('未识别到正文内容')),
+      );
+      return;
+    }
+    _controller.loadArticle(
+      title: article.title,
+      target: article.content,
+      paragraphNo: article.paragraphNo,
+    );
+    _inputController.clear();
+    _stored = false;
+    _focusNode.requestFocus();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已载入：${article.displayTitle}')),
+    );
+  }
+
   @override
   void dispose() {
     _controller
@@ -83,13 +117,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   controller.status == PracticeStatus.typing ||
                   controller.status == PracticeStatus.paused,
               onPause: controller.togglePause,
+              onMenu: () => _showArticleMenu(context),
             ),
             const SizedBox(height: 14),
-            MetricCard(
-              leftValue: controller.speed.toStringAsFixed(2),
-              leftLabel: '字/分',
-              rightValue: formatDuration(controller.elapsed),
-              rightLabel: '用时',
+            _CompactMetric(
+              speed: controller.speed,
+              elapsed: controller.elapsed,
             ),
             const SizedBox(height: 16),
             _Progress(
@@ -102,50 +135,12 @@ class _PracticeScreenState extends State<PracticeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '对照文本',
-                        style: TextStyle(
-                          color: AppColors.muted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Icon(
-                        Icons.volume_up_outlined,
-                        color: AppColors.primary,
-                        size: 20,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
                   _TargetRichText(
                     target: controller.target,
                     input: controller.input,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 12),
-            const Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  color: AppColors.yellow,
-                  size: 18,
-                ),
-                SizedBox(width: 8),
-                Text(
-                  '当前词语：轻轻  qiyi',
-                  style: TextStyle(
-                    color: AppColors.muted,
-                    fontFamily: 'monospace',
-                    fontSize: 13,
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 12),
             Container(
@@ -158,14 +153,6 @@ class _PracticeScreenState extends State<PracticeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text(
-                    controller.isFinished ? '已完成' : '正在输入',
-                    style: const TextStyle(
-                      color: AppColors.warning,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                   TextField(
                     controller: _inputController,
                     focusNode: _focusNode,
@@ -233,6 +220,18 @@ class _PracticeScreenState extends State<PracticeScreen> {
       );
     },
   );
+
+  void _showArticleMenu(BuildContext context) {
+    showMenu<String>(
+      context: context,
+      position: const RelativeRect.fromLTRB(20, 80, 320, 0),
+      items: const [
+        PopupMenuItem(value: 'clipboard', child: Text('从剪贴板载入文章')),
+      ],
+    ).then((value) {
+      if (value == 'clipboard') _loadFromClipboard();
+    });
+  }
 }
 
 class _Header extends StatelessWidget {
@@ -240,16 +239,21 @@ class _Header extends StatelessWidget {
     required this.paused,
     required this.canToggle,
     required this.onPause,
+    required this.onMenu,
   });
   final bool paused;
   final bool canToggle;
   final VoidCallback onPause;
+  final VoidCallback onMenu;
 
   @override
   Widget build(BuildContext context) => Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
-      IconButton.outlined(onPressed: null, icon: const Icon(Icons.arrow_back)),
+      IconButton.outlined(
+        onPressed: onMenu,
+        icon: const Icon(Icons.menu),
+      ),
       const Column(
         children: [
           Text(
@@ -274,6 +278,58 @@ class _Header extends StatelessWidget {
         ),
         icon: Icon(paused ? Icons.play_arrow : Icons.pause),
       ),
+    ],
+  );
+}
+
+class _CompactMetric extends StatelessWidget {
+  const _CompactMetric({required this.speed, required this.elapsed});
+  final double speed;
+  final Duration elapsed;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: AppColors.ink,
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        _Item(
+          value: speed.toStringAsFixed(2),
+          label: '字/分',
+        ),
+        _Item(value: formatDuration(elapsed), label: '用时', alignEnd: true),
+      ],
+    ),
+  );
+}
+
+class _Item extends StatelessWidget {
+  const _Item({required this.value, required this.label, this.alignEnd = false});
+  final String value;
+  final String label;
+  final bool alignEnd;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment:
+        alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(
+        value,
+        style: const TextStyle(
+          color: Colors.white,
+          fontFamily: 'monospace',
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      const SizedBox(height: 2),
+      Text(label, style: const TextStyle(color: Color(0xFFBFD0C1), fontSize: 10)),
     ],
   );
 }

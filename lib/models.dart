@@ -71,3 +71,55 @@ class ResultFormatSettings {
         fields: List<String>.from(json['fields'] as List<dynamic>),
       );
 }
+
+/// An article parsed from clipboard text.
+///
+/// Clipboard text used for practice is conventionally split across lines:
+///   line 1 - paragraph title
+///   line 2 - content to be typed
+///   line 3 - paragraph metadata, prefixed by five dashes (`-----`) and the
+///            paragraph number (e.g. `第89471段`).
+class ClipboardArticle {
+  const ClipboardArticle({
+    required this.title,
+    required this.content,
+    this.paragraphNo = '',
+  });
+
+  final String title;
+  final String content;
+  final String paragraphNo;
+
+  /// A display title combining the paragraph title and number.
+  String get displayTitle =>
+      paragraphNo.isEmpty ? title : '$title $paragraphNo';
+}
+
+/// Parses a multi-line clipboard snippet into a [ClipboardArticle].
+///
+/// Falls back to using the whole trimmed text as the content when the snippet
+/// does not contain any newlines.
+ClipboardArticle parseClipboardArticle(String raw) {
+  final lines = raw.split('\n').where((l) => l.trim().isNotEmpty).toList();
+  if (lines.isEmpty) {
+    return const ClipboardArticle(title: '', content: '');
+  }
+  if (lines.length == 1) {
+    return ClipboardArticle(title: '', content: lines.first.trim());
+  }
+  final title = lines.first.trim();
+  final content = lines[1].trim();
+  var paragraphNo = '';
+  if (lines.length >= 3) {
+    final meta = lines[2].trim();
+    final tail = meta.startsWith('-----') ? meta.substring(5).trim() : meta;
+    if (tail.isNotEmpty) {
+      paragraphNo = tail.split('-').first.trim();
+    }
+  }
+  return ClipboardArticle(
+    title: title,
+    content: content,
+    paragraphNo: paragraphNo,
+  );
+}

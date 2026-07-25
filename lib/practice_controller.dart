@@ -14,6 +14,7 @@ class PracticeController extends ChangeNotifier {
 
   String title;
   String target;
+  String paragraphNo = '';
   String input = '';
   PracticeStatus status = PracticeStatus.ready;
   Duration elapsed = Duration.zero;
@@ -76,7 +77,7 @@ class PracticeController extends ChangeNotifier {
 
   PracticeRecord finishRecord(DateTime now) => PracticeRecord(
     id: now.microsecondsSinceEpoch.toString(),
-    title: title,
+    title: paragraphNo.isEmpty ? title : '$title $paragraphNo',
     contentLength: target.length,
     elapsedMilliseconds: elapsed.inMilliseconds,
     speed: speed,
@@ -85,6 +86,25 @@ class PracticeController extends ChangeNotifier {
     retries: retries,
     finishedAt: now,
   );
+
+  /// Loads a [ClipboardArticle] for practice: resets typing state, applies the
+  /// new title/target and records the paragraph number.
+  void loadArticle({
+    required String title,
+    required String target,
+    String paragraphNo = '',
+  }) {
+    _timer?.cancel();
+    this.title = title;
+    this.target = target;
+    this.paragraphNo = paragraphNo;
+    input = '';
+    elapsed = Duration.zero;
+    replacements = 0;
+    status = PracticeStatus.ready;
+    retries = 0;
+    notifyListeners();
+  }
 
   void _start() {
     status = PracticeStatus.typing;
