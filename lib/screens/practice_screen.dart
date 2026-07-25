@@ -119,32 +119,27 @@ class _PracticeScreenState extends State<PracticeScreen> {
               onPause: controller.togglePause,
               onMenu: () => _showArticleMenu(context),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             _CompactMetric(
               speed: controller.speed,
               elapsed: controller.elapsed,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             _Progress(
               current: controller.progress,
               total: controller.target.length,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             OutlinePanel(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _TargetRichText(
-                    target: controller.target,
-                    input: controller.input,
-                  ),
-                ],
+              padding: const EdgeInsets.all(14),
+              child: _TargetRichText(
+                target: controller.target,
+                input: controller.input,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFF9F8),
                 borderRadius: BorderRadius.circular(18),
@@ -168,14 +163,14 @@ class _PracticeScreenState extends State<PracticeScreen> {
                     style: const TextStyle(
                       color: AppColors.ink,
                       fontFamily: 'serif',
-                      fontSize: 20,
+                      fontSize: 19,
                       height: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -183,7 +178,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                   controller.status == PracticeStatus.paused
                       ? '练习已暂停'
                       : '系统输入法已就绪',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                  style: const TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
                 FilledButton.icon(
                   onPressed: _retry,
@@ -196,7 +191,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             OutlinePanel(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
               child: Row(
@@ -258,13 +253,13 @@ class _Header extends StatelessWidget {
         children: [
           Text(
             '自由文本跟打',
-            style: TextStyle(color: AppColors.muted, fontSize: 12),
+            style: TextStyle(color: AppColors.muted, fontSize: 11),
           ),
           Text(
             '当前练习',
             style: TextStyle(
               color: AppColors.ink,
-              fontSize: 19,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -324,12 +319,12 @@ class _Item extends StatelessWidget {
         style: const TextStyle(
           color: Colors.white,
           fontFamily: 'monospace',
-          fontSize: 15,
+          fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
       ),
       const SizedBox(height: 2),
-      Text(label, style: const TextStyle(color: Color(0xFFBFD0C1), fontSize: 10)),
+      Text(label, style: const TextStyle(color: Color(0xFFBFD0C1), fontSize: 9)),
     ],
   );
 }
@@ -348,14 +343,14 @@ class _Progress extends StatelessWidget {
         children: [
           const Text(
             '练习进度',
-            style: TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: AppColors.muted, fontSize: 12),
           ),
           Text(
             '$current / $total',
             style: const TextStyle(
               color: AppColors.primary,
               fontFamily: 'monospace',
-              fontSize: 13,
+              fontSize: 12,
             ),
           ),
         ],
@@ -385,7 +380,7 @@ class _SmallMetric extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(color: AppColors.muted, fontSize: 11),
+          style: const TextStyle(color: AppColors.muted, fontSize: 10),
         ),
         const SizedBox(height: 5),
         Text(
@@ -394,7 +389,7 @@ class _SmallMetric extends StatelessWidget {
             color: AppColors.ink,
             fontFamily: 'monospace',
             fontWeight: FontWeight.w700,
-            fontSize: 15,
+            fontSize: 14,
           ),
         ),
       ],
@@ -402,10 +397,19 @@ class _SmallMetric extends StatelessWidget {
   );
 }
 
-class _TargetRichText extends StatelessWidget {
+class _TargetRichText extends StatefulWidget {
   const _TargetRichText({required this.target, required this.input});
   final String target;
   final String input;
+
+  @override
+  State<_TargetRichText> createState() => _TargetRichTextState();
+}
+
+class _TargetRichTextState extends State<_TargetRichText> {
+  final _cursorKey = GlobalKey();
+  final _scrollKey = GlobalKey();
+  final _scrollController = ScrollController();
 
   static const _correctBg = Color(0xFFe5e5e5);
   static const _errorBg = Color(0xFFF56C6C);
@@ -414,28 +418,77 @@ class _TargetRichText extends StatelessWidget {
   static const _pendingFg = Color(0xFF606266);
 
   @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(_TargetRichText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.input.length != widget.input.length ||
+        oldWidget.target != widget.target) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCursor());
+    }
+  }
+
+  void _scrollToCursor() {
+    if (!mounted || !_scrollController.hasClients) return;
+    final cursorBox = _cursorKey.currentContext?.findRenderObject() as RenderBox?;
+    final scrollBox = _scrollKey.currentContext?.findRenderObject() as RenderBox?;
+    if (cursorBox == null || scrollBox == null) return;
+
+    final cursorY = scrollBox.globalToLocal(cursorBox.localToGlobal(Offset.zero)).dy;
+    final viewportH = _scrollController.position.viewportDimension;
+    final target = (_scrollController.offset + cursorY - viewportH / 2).clamp(
+      _scrollController.position.minScrollExtent,
+      _scrollController.position.maxScrollExtent,
+    );
+    _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 80),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Text.rich(
-      TextSpan(
-        style: const TextStyle(
-          color: _pendingFg,
-          fontFamily: 'serif',
-          fontSize: 22,
-          height: 1.7,
+    final target = widget.target;
+    final input = widget.input;
+    final cursorIndex = input.length.clamp(0, target.length);
+
+    final spans = <InlineSpan>[];
+    for (var i = 0; i < cursorIndex; i++) {
+      final correct = input[i] == target[i];
+      spans.add(TextSpan(
+        text: target[i],
+        style: TextStyle(
+          color: correct ? _typedFg : _errorFg,
+          backgroundColor: correct ? _correctBg : _errorBg,
         ),
-        children: List.generate(target.length, (i) {
-          if (i >= input.length) {
-            return TextSpan(text: target[i]);
-          }
-          final correct = input[i] == target[i];
-          return TextSpan(
-            text: target[i],
-            style: TextStyle(
-              color: correct ? _typedFg : _errorFg,
-              backgroundColor: correct ? _correctBg : _errorBg,
+      ));
+    }
+    spans.add(WidgetSpan(child: SizedBox(key: _cursorKey, width: 0, height: 0)));
+    for (var i = cursorIndex; i < target.length; i++) {
+      spans.add(TextSpan(text: target[i]));
+    }
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: 200),
+      child: SingleChildScrollView(
+        key: _scrollKey,
+        controller: _scrollController,
+        child: Text.rich(
+          TextSpan(
+            style: const TextStyle(
+              color: _pendingFg,
+              fontFamily: 'serif',
+              fontSize: 21,
+              height: 1.6,
             ),
-          );
-        }),
+            children: spans,
+          ),
+        ),
       ),
     );
   }

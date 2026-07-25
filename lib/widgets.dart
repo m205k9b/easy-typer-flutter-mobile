@@ -8,7 +8,7 @@ class PageContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(20, 14, 20, 18),
+    padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
     child: child,
   );
 }
@@ -89,14 +89,14 @@ class _Metric extends StatelessWidget {
         style: const TextStyle(
           color: Colors.white,
           fontFamily: 'monospace',
-          fontSize: 20,
+          fontSize: 19,
           fontWeight: FontWeight.w700,
         ),
       ),
       const SizedBox(height: 4),
       Text(
         label,
-        style: const TextStyle(color: Color(0xFFBFD0C1), fontSize: 11),
+        style: const TextStyle(color: Color(0xFFBFD0C1), fontSize: 10),
       ),
     ],
   );
